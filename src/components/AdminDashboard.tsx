@@ -1,48 +1,84 @@
+import { useState, useMemo } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { LogOut, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useLogsData } from "@/hooks/useGoogleSheets";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
-import { useState, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { LogOut, RefreshCw } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useLogsData } from '@/hooks/useGoogleSheets';
+const LOGS_PER_PAGE = 20;
 
 export const AdminDashboard = () => {
   const { logout } = useAuth();
   const { data: logs, loading, refetch } = useLogsData();
   const [filters, setFilters] = useState({
-    guestName: '',
-    decision: '',
-    dateFrom: '',
-    dateTo: '',
+    guestName: "",
+    decision: "",
+    dateFrom: "",
+    dateTo: "",
   });
 
-  const filteredLogs = useMemo(() => {
-    return logs.filter(log => {
-      const matchesGuest = !filters.guestName || 
-        log.GuestName.toLowerCase().includes(filters.guestName.toLowerCase());
-      
-      const matchesDecision = !filters.decision || 
-        log.Decision.includes(filters.decision);
-      
-      const logDate = new Date(log.Timestamp);
-      const matchesDateFrom = !filters.dateFrom || 
-        logDate >= new Date(filters.dateFrom);
-      
-      const matchesDateTo = !filters.dateTo || 
-        logDate <= new Date(filters.dateTo);
+  // Modal state for cell click
+  const [selectedCell, setSelectedCell] = useState<{
+    label: string;
+    value: string;
+  } | null>(null);
 
-      return matchesGuest && matchesDecision && matchesDateFrom && matchesDateTo;
+  // Pagination state
+  const [page, setPage] = useState(1);
+
+  const filteredLogs = useMemo(() => {
+    const filtered = logs.filter((log) => {
+      const matchesGuest =
+        !filters.guestName ||
+        log.GuestName.toLowerCase().includes(filters.guestName.toLowerCase());
+
+      const matchesDecision =
+        !filters.decision || log.Decision.includes(filters.decision);
+
+      const logDate = new Date(log.Timestamp);
+      const matchesDateFrom =
+        !filters.dateFrom || logDate >= new Date(filters.dateFrom);
+
+      const matchesDateTo =
+        !filters.dateTo || logDate <= new Date(filters.dateTo);
+
+      return (
+        matchesGuest && matchesDecision && matchesDateFrom && matchesDateTo
+      );
     });
+
+    // Sort by Timestamp descending (most recent first)
+    return filtered.sort(
+      (a, b) =>
+        new Date(b.Timestamp).getTime() - new Date(a.Timestamp).getTime()
+    );
   }, [logs, filters]);
+
+  // Reset page to 1 when filters change
+  useMemo(() => {
+    setPage(1);
+  }, [filters, logs]);
+
+  // Pagination logic
+  const totalPages = Math.max(1, Math.ceil(filteredLogs.length / LOGS_PER_PAGE));
+  const paginatedLogs = filteredLogs.slice(
+    (page - 1) * LOGS_PER_PAGE,
+    page * LOGS_PER_PAGE
+  );
 
   const analytics = useMemo(() => {
     const totalDecisions = filteredLogs.length;
-    const appleDecisions = filteredLogs.filter(log => log.Decision=== 'Send to Apple').length;
-    const grandDecisions = filteredLogs.filter(log => log.Decision === 'Send to Grand').length;
-    
+    const appleDecisions = filteredLogs.filter(
+      (log) => log.Decision === "Send to Apple"
+    ).length;
+    const grandDecisions = filteredLogs.filter(
+      (log) => log.Decision === "Send to Grand"
+    ).length;
+
     const userActivity = filteredLogs.reduce((acc, log) => {
       const name = log.GuestName;
       if (!acc[name]) {
@@ -61,8 +97,14 @@ export const AdminDashboard = () => {
       totalDecisions,
       appleDecisions,
       grandDecisions,
-      applePercentage: totalDecisions > 0 ? Math.round((appleDecisions / totalDecisions) * 100) : 0,
-      grandPercentage: totalDecisions > 0 ? Math.round((grandDecisions / totalDecisions) * 100) : 0,
+      applePercentage:
+        totalDecisions > 0
+          ? Math.round((appleDecisions / totalDecisions) * 100)
+          : 0,
+      grandPercentage:
+        totalDecisions > 0
+          ? Math.round((grandDecisions / totalDecisions) * 100)
+          : 0,
       topUsers,
     };
   }, [filteredLogs]);
@@ -102,39 +144,59 @@ export const AdminDashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Total Decisions</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Total Decisions
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{analytics.totalDecisions}</div>
+              <div className="text-2xl font-bold">
+                {analytics.totalDecisions}
+              </div>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Apple Decisions</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Apple Decisions
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">{analytics.appleDecisions}</div>
-              <p className="text-xs text-muted-foreground">{analytics.applePercentage}% of total</p>
+              <div className="text-2xl font-bold text-green-600">
+                {analytics.appleDecisions}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {analytics.applePercentage}% of total
+              </p>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Grand Decisions</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Grand Decisions
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-red-600">{analytics.grandDecisions}</div>
-              <p className="text-xs text-muted-foreground">{analytics.grandPercentage}% of total</p>
+              <div className="text-2xl font-bold text-red-600">
+                {analytics.grandDecisions}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {analytics.grandPercentage}% of total
+              </p>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Active Users</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Active Users
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{analytics.topUsers.length}</div>
+              <div className="text-2xl font-bold">
+                {analytics.topUsers.length}
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -147,19 +209,28 @@ export const AdminDashboard = () => {
           <CardContent>
             <div className="space-y-2">
               {analytics.topUsers.map(([name, stats], index) => (
-                <div key={name} className="flex justify-between items-center p-2 bg-muted rounded">
+                <div
+                  key={name}
+                  className="flex justify-between items-center p-2 bg-muted rounded"
+                >
                   <div className="flex items-center gap-2">
                     <Badge variant="outline">#{index + 1}</Badge>
                     <span className="font-medium">{name}</span>
                   </div>
                   <div className="text-right">
-                    <div className="text-sm font-medium">{stats.count} decisions</div>
-                    <div className="text-xs text-muted-foreground">${stats.totalProfit.toFixed(2)} total profit</div>
+                    <div className="text-sm font-medium">
+                      {stats.count} decisions
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      ${stats.totalProfit.toFixed(2)} total profit
+                    </div>
                   </div>
                 </div>
               ))}
               {analytics.topUsers.length === 0 && (
-                <p className="text-muted-foreground text-center py-4">No user activity yet</p>
+                <p className="text-muted-foreground text-center py-4">
+                  No user activity yet
+                </p>
               )}
             </div>
           </CardContent>
@@ -177,7 +248,12 @@ export const AdminDashboard = () => {
                 <Input
                   id="guestName"
                   value={filters.guestName}
-                  onChange={(e) => setFilters(prev => ({ ...prev, guestName: e.target.value }))}
+                  onChange={(e) =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      guestName: e.target.value,
+                    }))
+                  }
                   placeholder="Filter by name"
                 />
               </div>
@@ -186,7 +262,12 @@ export const AdminDashboard = () => {
                 <select
                   id="decision"
                   value={filters.decision}
-                  onChange={(e) => setFilters(prev => ({ ...prev, decision: e.target.value }))}
+                  onChange={(e) =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      decision: e.target.value,
+                    }))
+                  }
                   className="w-full h-10 px-3 rounded-md border border-input bg-background"
                 >
                   <option value="">All Decisions</option>
@@ -200,7 +281,12 @@ export const AdminDashboard = () => {
                   id="dateFrom"
                   type="date"
                   value={filters.dateFrom}
-                  onChange={(e) => setFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
+                  onChange={(e) =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      dateFrom: e.target.value,
+                    }))
+                  }
                 />
               </div>
               <div>
@@ -209,59 +295,200 @@ export const AdminDashboard = () => {
                   id="dateTo"
                   type="date"
                   value={filters.dateTo}
-                  onChange={(e) => setFilters(prev => ({ ...prev, dateTo: e.target.value }))}
+                  onChange={(e) =>
+                    setFilters((prev) => ({ ...prev, dateTo: e.target.value }))
+                  }
                 />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Logs Table */}
+        {/* Logs Table with Pagination */}
         <Card>
           <CardHeader>
-            <CardTitle>Decision Logs ({filteredLogs.length} entries)</CardTitle>
+            <CardTitle>
+              Decision Logs ({filteredLogs.length} entries)
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
               <table className="w-full border-collapse border border-border text-sm">
                 <thead>
                   <tr className="bg-muted">
-                    
-                    <th className="border border-border p-2 text-left">Timestamp</th>
-                    <th className="border border-border p-2 text-left">Guest</th>
-                    <th className="border border-border p-2 text-left">Patient</th>
-                    <th className="border border-border p-2 text-left">Insurance</th>
-                    <th className="border border-border p-2 text-left">Drugs</th>
-                    <th className="border border-border p-2 text-right">Profit</th>
-                    <th className="border border-border p-2 text-center">Decision</th>
-                    <th className="border border-border p-2 text-left">Transaction ID</th>
+                    <th className="border border-border p-2 text-left">
+                      Timestamp
+                    </th>
+                    <th className="border border-border p-2 text-left">
+                      Guest
+                    </th>
+                    <th className="border border-border p-2 text-left">
+                      Patient
+                    </th>
+                    <th className="border border-border p-2 text-left">
+                      Insurance
+                    </th>
+                    <th className="border border-border p-2 text-left">
+                      Drugs
+                    </th>
+                    <th className="border border-border p-2 text-right">
+                      Profit
+                    </th>
+                    <th className="border border-border p-2 text-center">
+                      Decision
+                    </th>
+                    <th className="border border-border p-2 text-left">
+                      Transaction ID
+                    </th>
+                    <th className="border border-border p-2 text-left">
+                      First Initial
+                    </th>
+                    <th className="border border-border p-2 text-left">
+                      DOB
+                    </th>
+                    <th className="border border-border p-2 text-left">
+                      MRN
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredLogs.map((log, index) => (
+                  {paginatedLogs.map((log, index) => (
                     <tr key={index} className="hover:bg-muted/50">
-                      <td className="border border-border p-2">
+                      <td
+                        className="border border-border p-2 cursor-pointer"
+                        onClick={() =>
+                          setSelectedCell({
+                            label: "Timestamp",
+                            value: new Date(log.Timestamp).toLocaleString(),
+                          })
+                        }
+                      >
                         {new Date(log.Timestamp).toLocaleString()}
                       </td>
-                      <td className="border border-border p-2">{log.GuestName}</td>
-                      <td className="border border-border p-2">
+                      <td
+                        className="border border-border p-2 cursor-pointer"
+                        onClick={() =>
+                          setSelectedCell({
+                            label: "Guest",
+                            value: log.GuestName,
+                          })
+                        }
+                      >
+                        {log.GuestName}
+                      </td>
+                      <td
+                        className="border border-border p-2 cursor-pointer"
+                        onClick={() =>
+                          setSelectedCell({
+                            label: "Patient",
+                            value: `${log.LastName}, ${log.FirstInitial}\nMRN: ${log.MRN}`,
+                          })
+                        }
+                      >
                         {log.LastName}, {log.FirstInitial}
                         <br />
-                        <span className="text-xs text-muted-foreground">MRN: {log.MRN}</span>
+                        <span className="text-xs text-muted-foreground">
+                          MRN: {log.MRN}
+                        </span>
                       </td>
-                      <td className="border border-border p-2">{log.Insurance}</td>
-                      <td className="border border-border p-2 max-w-48">
+                      <td
+                        className="border border-border p-2 cursor-pointer"
+                        onClick={() =>
+                          setSelectedCell({
+                            label: "Insurance",
+                            value: log.Insurance,
+                          })
+                        }
+                      >
+                        {log.Insurance}
+                      </td>
+                      <td
+                        className="border border-border p-2 max-w-48 cursor-pointer"
+                        onClick={() =>
+                          setSelectedCell({
+                            label: "Drugs",
+                            value: log.Drugs,
+                          })
+                        }
+                      >
                         <div className="truncate" title={log.Drugs}>
                           {log.Drugs}
                         </div>
                       </td>
-                      <td className="border border-border p-2 text-right">${parseFloat(log.TotalProfit).toFixed(2)}</td>
-                      <td className="border border-border p-2 text-center">
-                        <Badge variant={log.Decision === 'Send to Apple' ? 'default' : 'destructive'}>
+                      <td
+                        className="border border-border p-2 text-right cursor-pointer"
+                        onClick={() =>
+                          setSelectedCell({
+                            label: "Profit",
+                            value: `$${parseFloat(log.TotalProfit).toFixed(2)}`,
+                          })
+                        }
+                      >
+                        ${parseFloat(log.TotalProfit).toFixed(2)}
+                      </td>
+                      <td
+                        className="border border-border p-2 text-center cursor-pointer"
+                        onClick={() =>
+                          setSelectedCell({
+                            label: "Decision",
+                            value: log.Decision,
+                          })
+                        }
+                      >
+                        <Badge
+                          variant={
+                            log.Decision === "Send to Apple"
+                              ? "default"
+                              : "destructive"
+                          }
+                        >
                           {log.Decision}
                         </Badge>
                       </td>
-                      <td className="border border-border p-2 font-mono text-xs">{log.TransactionID}</td>
+                      <td
+                        className="border border-border p-2 font-mono text-xs cursor-pointer"
+                        onClick={() =>
+                          setSelectedCell({
+                            label: "Transaction ID",
+                            value: log.TransactionID,
+                          })
+                        }
+                      >
+                        {log.TransactionID}
+                      </td>
+                      <td
+                        className="border border-border p-2 font-mono text-xs cursor-pointer"
+                        onClick={() =>
+                          setSelectedCell({
+                            label: "First Initial",
+                            value: log.FirstInitial,
+                          })
+                        }
+                      >
+                        {log.FirstInitial}
+                      </td>
+                      <td
+                        className="border border-border p-2 font-mono text-xs cursor-pointer"
+                        onClick={() =>
+                          setSelectedCell({
+                            label: "DOB",
+                            value: log.DOB,
+                          })
+                        }
+                      >
+                        {log.DOB}
+                      </td>
+                      <td
+                        className="border border-border p-2 font-mono text-xs cursor-pointer"
+                        onClick={() =>
+                          setSelectedCell({
+                            label: "MRN",
+                            value: log.MRN,
+                          })
+                        }
+                      >
+                        {log.MRN}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -272,8 +499,44 @@ export const AdminDashboard = () => {
                 </div>
               )}
             </div>
+            {/* Pagination Controls */}
+            {filteredLogs.length > 0 && (
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-muted-foreground">
+                  Page {page} of {totalPages}
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
+
+        {/* Modal for cell details */}
+        <Dialog open={!!selectedCell} onOpenChange={() => setSelectedCell(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{selectedCell?.label}</DialogTitle>
+            </DialogHeader>
+            <div className="whitespace-pre-wrap break-all">{selectedCell?.value}</div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
