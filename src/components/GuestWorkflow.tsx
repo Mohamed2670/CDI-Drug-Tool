@@ -83,8 +83,7 @@ export const GuestWorkflow = () => {
     // Calculate profit for each selected drug
     selection.drugs.forEach((drug) => {
       const matchingRow = profitData.find(
-        (row) =>
-          row.Item === drug && row["Third Party"] === selection.insurance
+        (row) => row.Item === drug && row["Third Party"] === selection.insurance
       );
       const raw = matchingRow?.["Gross Profit"] ?? "0";
       const profit = parseFloat(raw.replace(/[^0-9.-]+/g, "")) || 0;
@@ -132,7 +131,9 @@ export const GuestWorkflow = () => {
         "First Initial": patientData.firstInitial,
         MRN: patientData.mrn,
         Insurance: selection.insurance,
-        "Selected Drugs": selection.drugs.join(", "),
+        "Selected Drugs": decisionResult.drugProfits
+          .map((item) => `${item.drug} ($${item.profit.toFixed(2)})`)
+          .join(", "),
         "Total Profit": decisionResult.totalProfit.toString(),
         "Final Decision": decisionResult.decision,
         "Transaction ID": decisionResult.transactionId,
@@ -226,36 +227,25 @@ export const GuestWorkflow = () => {
                   />
                 </div>
                 <div>
-                  <Label>Date of Birth</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !patientData.dob && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {patientData.dob ? (
-                          format(patientData.dob, "PPP")
-                        ) : (
-                          <span>Pick a date</span>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={patientData.dob}
-                        onSelect={(date) =>
-                          setPatientData((prev) => ({ ...prev, dob: date }))
-                        }
-                        initialFocus
-                        className="p-3 pointer-events-auto"
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <Label htmlFor="dob">Date of Birth</Label>
+                  <Input
+                    id="dob"
+                    type="date"
+                    value={
+                      patientData.dob
+                        ? format(patientData.dob, "yyyy-MM-dd")
+                        : ""
+                    }
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setPatientData((prev) => ({
+                        ...prev,
+                        dob: value ? new Date(value) : undefined,
+                      }));
+                    }}
+                    placeholder="YYYY-MM-DD"
+                    className="w-full"
+                  />
                 </div>
                 <div>
                   <Label htmlFor="firstInitial">First Initial</Label>
