@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,9 +7,28 @@ import { Badge } from "@/components/ui/badge";
 import { LogOut, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLogsData } from "@/hooks/useGoogleSheets";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const LOGS_PER_PAGE = 20;
+
+function parseDrugs(drugsStr: string) {
+  if (!drugsStr) return [];
+  return drugsStr.split(",").map((entry) => {
+    const match = entry.match(/^(.*)\((\$[\d.,]+)\)$/);
+    if (match) {
+      return {
+        name: match[1].trim(),
+        price: match[2],
+      };
+    }
+    return { name: entry.trim(), price: "" };
+  });
+}
 
 export const AdminDashboard = () => {
   const { logout } = useAuth();
@@ -27,8 +46,13 @@ export const AdminDashboard = () => {
     value: string;
   } | null>(null);
 
+  // Modal state for drugs
+  const [selectedDrugs, setSelectedDrugs] = useState<string | null>(null);
+
   // Pagination state
   const [page, setPage] = useState(1);
+
+  // Extraction handler for drugs
 
   const filteredLogs = useMemo(() => {
     const filtered = logs.filter((log) => {
@@ -64,12 +88,64 @@ export const AdminDashboard = () => {
   }, [filters, logs]);
 
   // Pagination logic
-  const totalPages = Math.max(1, Math.ceil(filteredLogs.length / LOGS_PER_PAGE));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredLogs.length / LOGS_PER_PAGE)
+  );
   const paginatedLogs = filteredLogs.slice(
     (page - 1) * LOGS_PER_PAGE,
     page * LOGS_PER_PAGE
   );
+  const handleExtractDrugs = useCallback(() => {
+    if (!selectedDrugs) return;
+    // Find the log row for the selected drugs
+    const log = paginatedLogs.find((l) => l.Drugs === selectedDrugs);
+    if (!log) return;
+    // Prepare CSV header and row
+    const drugsRows = parseDrugs(selectedDrugs);
+    const drugsCsv = drugsRows
+      .map((row) => `${row.name},${row.price}`)
+      .join("; ");
+    const headers = [
+      "Timestamp",
+      "Guest",
+      "Patient",
+      "Insurance",
+      "Drugs",
+      "Profit",
+      "Decision",
+      "Transaction ID",
+      "First Initial",
+      "DOB",
+      "MRN",
+    ];
+    const row = [
+      new Date(log.Timestamp).toLocaleString(),
+      log.GuestName,
+      `${log.LastName}, ${log.FirstInitial}`,
+      log.Insurance,
+      drugsCsv,
+      `$${parseFloat(log.TotalProfit).toFixed(2)}`,
+      log.Decision,
+      log.TransactionID,
+      log.FirstInitial,
+      log.DOB,
+      log.MRN,
+    ];
+    const csv = `${headers.join(",")}\n${row
+      .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+      .join(",")}`;
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
 
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "drugs_row.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [selectedDrugs, [paginatedLogs]]);
   const analytics = useMemo(() => {
     const totalDecisions = filteredLogs.length;
     const appleDecisions = filteredLogs.filter(
@@ -307,9 +383,7 @@ export const AdminDashboard = () => {
         {/* Logs Table with Pagination */}
         <Card>
           <CardHeader>
-            <CardTitle>
-              Decision Logs ({filteredLogs.length} entries)
-            </CardTitle>
+            <CardTitle>Decision Logs ({filteredLogs.length} entries)</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
@@ -343,12 +417,8 @@ export const AdminDashboard = () => {
                     <th className="border border-border p-2 text-left">
                       First Initial
                     </th>
-                    <th className="border border-border p-2 text-left">
-                      DOB
-                    </th>
-                    <th className="border border-border p-2 text-left">
-                      MRN
-                    </th>
+                    <th className="border border-border p-2 text-left">DOB</th>
+                    <th className="border border-border p-2 text-left">MRN</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -404,12 +474,7 @@ export const AdminDashboard = () => {
                       </td>
                       <td
                         className="border border-border p-2 max-w-48 cursor-pointer"
-                        onClick={() =>
-                          setSelectedCell({
-                            label: "Drugs",
-                            value: log.Drugs,
-                          })
-                        }
+                        onClick={() => setSelectedDrugs(log.Drugs)}
                       >
                         <div className="truncate" title={log.Drugs}>
                           {log.Drugs}
@@ -528,13 +593,61 @@ export const AdminDashboard = () => {
           </CardContent>
         </Card>
 
+        {/* Modal for Drugs */}
+        <Dialog
+          open={!!selectedDrugs}
+          onOpenChange={() => setSelectedDrugs(null)}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Drugs &amp; Prices</DialogTitle>
+            </DialogHeader>
+            <div>
+              {selectedDrugs && (
+                <>
+                  <div className="mb-2 flex justify-end">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleExtractDrugs}
+                    >
+                      Extract (Copy CSV)
+                    </Button>
+                  </div>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr>
+                        <th className="text-left py-1 pr-4">Drug</th>
+                        <th className="text-left py-1">Price</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {parseDrugs(selectedDrugs).map((drug, idx) => (
+                        <tr key={idx}>
+                          <td className="py-1 pr-4">{drug.name}</td>
+                          <td className="py-1">{drug.price}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+
         {/* Modal for cell details */}
-        <Dialog open={!!selectedCell} onOpenChange={() => setSelectedCell(null)}>
+        <Dialog
+          open={!!selectedCell}
+          onOpenChange={() => setSelectedCell(null)}
+        >
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{selectedCell?.label}</DialogTitle>
             </DialogHeader>
-            <div className="whitespace-pre-wrap break-all">{selectedCell?.value}</div>
+            <div className="whitespace-pre-wrap break-all">
+              {selectedCell?.value}
+            </div>
           </DialogContent>
         </Dialog>
       </div>
