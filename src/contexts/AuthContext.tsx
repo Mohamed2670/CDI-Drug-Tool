@@ -1,5 +1,4 @@
-
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 interface User {
   name: string;
@@ -29,12 +28,26 @@ interface AuthProviderProps {
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
 
+  // ⏪ Load user from localStorage on mount
+  useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
+  }, []);
+
+  // ✅ Save user on login
   const login = (name: string, role: 'guest' | 'admin') => {
-    setUser({ name, role });
+    const newUser = { name, role };
+    setUser(newUser);
+    localStorage.setItem('user', JSON.stringify(newUser));
   };
 
+  // 🧹 Clear on logout
   const logout = () => {
     setUser(null);
+    localStorage.removeItem('user');
+    localStorage.removeItem('accessToken'); // also clear token
   };
 
   return (

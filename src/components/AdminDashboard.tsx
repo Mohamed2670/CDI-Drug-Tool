@@ -19,7 +19,8 @@ const LOGS_PER_PAGE = 20;
 function parseDrugs(drugsStr: string) {
   if (!drugsStr) return [];
   return drugsStr.split(",").map((entry) => {
-    const match = entry.match(/^(.*)\((\$[\d.,]+)\)$/);
+    // Match: DrugName($12.34), DrugName($-4.99), or DrugName(-)
+    const match = entry.match(/^(.*)\((\$-?[\d.,]+|-)\)$/);
     if (match) {
       return {
         name: match[1].trim(),
@@ -29,7 +30,6 @@ function parseDrugs(drugsStr: string) {
     return { name: entry.trim(), price: "" };
   });
 }
-
 export const AdminDashboard = () => {
   const { logout } = useAuth();
   const { data: logs, loading, refetch } = useLogsData();
@@ -195,6 +195,55 @@ export const AdminDashboard = () => {
       </div>
     );
   }
+  const downloadCSV = (logs: any[]) => {
+    if (!logs || logs.length === 0) return;
+
+    const replacer = (key: string, value: any) =>
+      value === null || value === undefined ? "" : value;
+
+    const headers = [
+      "Timestamp",
+      "Guest",
+      "Patient",
+      "Insurance",
+      "Drugs",
+      "Profit",
+      "Decision",
+      "Transaction ID",
+      "First Initial",
+      "DOB",
+      "MRN",
+    ];
+
+    const csvRows = logs.map((log) =>
+      [
+        new Date(log.Timestamp).toLocaleString(),
+        log.GuestName,
+        `${log.LastName}, ${log.FirstInitial}`,
+        log.Insurance,
+        log.Drugs,
+        parseFloat(log.TotalProfit).toFixed(2),
+        log.Decision,
+        log.TransactionID,
+        log.FirstInitial,
+        log.DOB,
+        log.MRN,
+      ]
+        .map((val) => `"${val}"`)
+        .join(",")
+    );
+
+    const csvContent = [headers.join(","), ...csvRows].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "decision_logs.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -313,6 +362,14 @@ export const AdminDashboard = () => {
         </Card>
 
         {/* Filters */}
+        <Button
+          variant="secondary"
+          className="mb-4"
+          onClick={() => downloadCSV(filteredLogs)}
+        >
+          Download CSV
+        </Button>
+
         <Card className="mb-6">
           <CardHeader>
             <CardTitle>Filters</CardTitle>

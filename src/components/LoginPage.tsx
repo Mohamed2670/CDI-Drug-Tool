@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,24 +6,50 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import axiosInstance from '@/api/axiosInstance';
 
 export const LoginPage = () => {
   const [selectedRole, setSelectedRole] = useState<'guest' | 'admin' | null>(null);
   const [guestName, setGuestName] = useState('');
+  const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const { login } = useAuth();
 
-  const handleGuestLogin = () => {
-    if (guestName.trim()) {
-      login(guestName.trim(), 'guest');
+  const handleGuestLogin = async () => {
+    if (!guestName.trim()) return;
+    try {
+      const res = await axiosInstance.post<{ accessToken: string; role: string }>(
+        '/user/guest-login',
+        { name: guestName.trim() },
+        { withCredentials: true }
+      );
+      localStorage.setItem('accessToken', res.data.accessToken);
+      // Map backend role to expected union type
+      const mappedRole: 'guest' | 'admin' = res.data.role === 'Admin' ? 'admin' : 'guest';
+      login(guestName.trim(), mappedRole); // role = "guest"
+    } catch (err) {
+      alert('Guest login failed.');
     }
   };
 
-  const handleAdminLogin = () => {
-    if (adminPassword === 'admin123') {
-      login('Administrator', 'admin');
-    } else {
-      alert('Incorrect password');
+  const handleAdminLogin = async () => {
+    if (!adminEmail.trim() || !adminPassword.trim()) return;
+    try {
+      const res = await axiosInstance.post<{ accessToken: string; role: string }>(
+        '/user/login',
+        {
+          email: adminEmail.trim(),
+          password: adminPassword,
+        },
+        { withCredentials: true }
+      );
+      localStorage.setItem('accessToken', res.data.accessToken);
+      // Map backend role to expected union type
+      const mappedRole: 'guest' | 'admin' = res.data.role === 'Admin' ? 'admin' : 'guest';
+      login('Administrator', mappedRole); // role = "admin"
+    } catch (err) {
+      console.log(err);
+      alert('Incorrect email or password.');
     }
   };
 
@@ -41,10 +66,7 @@ export const LoginPage = () => {
 
         {!selectedRole ? (
           <div className="space-y-4">
-            <Card 
-              className="cursor-pointer hover:shadow-lg transition-shadow"
-              onClick={() => setSelectedRole('guest')}
-            >
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setSelectedRole('guest')}>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   Guest Access
@@ -58,10 +80,7 @@ export const LoginPage = () => {
               </CardContent>
             </Card>
 
-            <Card 
-              className="cursor-pointer hover:shadow-lg transition-shadow"
-              onClick={() => setSelectedRole('admin')}
-            >
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setSelectedRole('admin')}>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   Admin Access
@@ -80,11 +99,7 @@ export const LoginPage = () => {
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 {selectedRole === 'guest' ? 'Guest Login' : 'Admin Login'}
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => setSelectedRole(null)}
-                >
+                <Button variant="ghost" size="sm" onClick={() => setSelectedRole(null)}>
                   Back
                 </Button>
               </CardTitle>
@@ -99,11 +114,11 @@ export const LoginPage = () => {
                       value={guestName}
                       onChange={(e) => setGuestName(e.target.value)}
                       placeholder="Enter your name"
-                      onKeyPress={(e) => e.key === 'Enter' && handleGuestLogin()}
+                      onKeyDown={(e) => e.key === 'Enter' && handleGuestLogin()}
                     />
                   </div>
-                  <Button 
-                    onClick={handleGuestLogin} 
+                  <Button
+                    onClick={handleGuestLogin}
                     disabled={!guestName.trim()}
                     className="w-full"
                   >
@@ -113,6 +128,16 @@ export const LoginPage = () => {
               ) : (
                 <>
                   <div>
+                    <Label htmlFor="admin-email">Email</Label>
+                    <Input
+                      id="admin-email"
+                      type="email"
+                      value={adminEmail}
+                      onChange={(e) => setAdminEmail(e.target.value)}
+                      placeholder="Enter admin email"
+                    />
+                  </div>
+                  <div>
                     <Label htmlFor="admin-password">Password</Label>
                     <Input
                       id="admin-password"
@@ -120,12 +145,12 @@ export const LoginPage = () => {
                       value={adminPassword}
                       onChange={(e) => setAdminPassword(e.target.value)}
                       placeholder="Enter admin password"
-                      onKeyPress={(e) => e.key === 'Enter' && handleAdminLogin()}
+                      onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()}
                     />
                   </div>
-                  <Button 
-                    onClick={handleAdminLogin} 
-                    disabled={!adminPassword}
+                  <Button
+                    onClick={handleAdminLogin}
+                    disabled={!adminEmail.trim() || !adminPassword}
                     className="w-full"
                   >
                     Login as Admin

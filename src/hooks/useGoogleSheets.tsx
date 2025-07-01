@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Papa from "papaparse";
 import { toast } from "sonner";
+import axiosInstance from "@/api/axiosInstance";
 
 export interface ProfitData {
   Item: string;
@@ -10,7 +11,7 @@ export interface ProfitData {
 
 export interface LogEntry {
   Timestamp: string;
-  GuestName: string;          // ✅ no space
+  GuestName: string; // ✅ no space
   LastName: string;
   DOB: string;
   FirstInitial: string;
@@ -61,42 +62,60 @@ export const useProfitData = () => {
   return { data, loading, error };
 };
 
-export const useLogsData = () => {
+export const useLogsData = (pageSize = 10, pageNumber = 1) => {
   const [data, setData] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [totalCount, setTotalCount] = useState<number>(0); // ← Optional total logs
 
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(LOGS_DATA_URL);
-      const csvText = await response.text();
-
-      Papa.parse(csvText, {
-        header: true,
-        complete: (results) => {
-          setData(results.data as LogEntry[]);
-          setLoading(false);
-        },
-        error: (error) => {
-          setError(error.message);
-          setLoading(false);
-        },
+      const response = await axiosInstance.get("/log/GetAllLogsPaginated", {
+        params: { pageSize, pageNumber },
       });
-      console.log("logs data [0]",data[0], "gust data : ",data[0]["Guest Name"]);
-    } catch (err) {
-      setError("Failed to fetch logs data");
+      console.log(response);
+      const dataObj = response.data as { items?: any[]; totalCount?: number };
+      const logsData = Array.isArray(dataObj.items) ? dataObj.items : Array.isArray(dataObj) ? dataObj : [];
+      const count = dataObj.totalCount || 0;
+
+      const normalized = logsData.map((item: any) => ({
+        Timestamp: item.timestamp,
+        GuestName: item.guestName,
+        LastName: item.lastName,
+        DOB: item.dob,
+        FirstInitial: item.firstInitial,
+        MRN: item.mrn,
+        Insurance: item.insurance,
+        Drugs: item.drugs,
+        TotalProfit: item.totalProfit.toFixed(2),
+        Decision: item.decision,
+        TransactionID: item.transactionID,
+      })) as LogEntry[];
+
+      setData(normalized);
+      setTotalCount(count);
+    } catch (err: any) {
+      setError(err.message || "Failed to fetch logs");
+      toast.error("❌ Failed to fetch logs.");
+    } finally {
       setLoading(false);
     }
-  };
+  }, [pageSize, pageNumber]);
 
   useEffect(() => {
     fetchLogs();
-  }, []);
+  }, [fetchLogs]);
 
-  return { data, loading, error, refetch: fetchLogs };
+  return {
+    data,
+    loading,
+    error,
+    totalCount,
+    totalPages: Math.ceil(totalCount / pageSize),
+    refetch: fetchLogs,
+  };
 };
-
 export const generateTransactionId = () => {
   const now = new Date();
   const dateStr =
@@ -121,7 +140,9 @@ export interface LogEntry2 {
   "Final Decision": string;
   "Transaction ID": string;
 }
-export const postToLogsSheet = async (logData: Omit<LogEntry2, "Timestamp">) => {
+export const postToLogsSheet = async (
+  logData: Omit<LogEntry2, "Timestamp">
+) => {
   try {
     // Prepare the data with timestamp in the format expected by your script
     const dataToSend = {

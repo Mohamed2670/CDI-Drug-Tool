@@ -22,6 +22,7 @@ import {
 } from "@/hooks/useGoogleSheets";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import axiosInstance from "@/api/axiosInstance";
 
 interface PatientData {
   lastName: string;
@@ -124,19 +125,20 @@ export const GuestWorkflow = () => {
 
     try {
       // Log to Google Sheets
-      await postToLogsSheet({
+      await axiosInstance.post("/log/CreateLog", {
         "Guest Name": user?.name || "",
         "Last Name": patientData.lastName,
-        DOB: patientData.dob?.toISOString().split("T")[0] || "",
+        dob: patientData.dob?.toISOString().split("T")[0] || "",
         "First Initial": patientData.firstInitial,
-        MRN: patientData.mrn,
-        Insurance: selection.insurance,
+        mrn: patientData.mrn,
+        insurance: selection.insurance,
         "Selected Drugs": decisionResult.drugProfits
           .map((item) => `${item.drug} ($${item.profit.toFixed(2)})`)
           .join(", "),
-        "Total Profit": decisionResult.totalProfit.toString(),
+        "Total Profit": decisionResult.totalProfit.toFixed(2),
         "Final Decision": decisionResult.decision,
         "Transaction ID": decisionResult.transactionId,
+        timestamp: new Date().toISOString(),
       });
 
       toast({

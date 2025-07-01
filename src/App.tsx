@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,18 +9,23 @@ import { AdminDashboard } from "@/components/AdminDashboard";
 
 const queryClient = new QueryClient();
 
+type UserRole = "admin" | "guest" | "user";
+
 const AppContent = () => {
   const { user } = useAuth();
 
-  if (!user) {
-    return <LoginPage />;
-  }
+  if (!user) return <LoginPage />;
 
-  if (user.role === 'admin') {
-    return <AdminDashboard />;
-  }
+  const role = user.role?.toLowerCase() as UserRole;
 
-  return <GuestWorkflow />;
+  if (role === "admin") return <AdminDashboard />;
+  if (role === "guest" || role === "user") return <GuestWorkflow />;
+
+  return (
+    <div className="text-center p-8 text-red-600 font-bold">
+      Unknown role: {user.role}
+    </div>
+  );
 };
 
 const App = () => (
