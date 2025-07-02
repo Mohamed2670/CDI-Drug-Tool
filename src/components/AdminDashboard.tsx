@@ -623,13 +623,17 @@ export const AdminDashboard = () => {
                           setSelectedCell({
                             label: "DOB",
                             value: log.DOB
-                              ? new Date(log.DOB).toISOString().split("T")[0]
+                              ? new Date(log.DOB)
+                                  .toLocaleDateString("en-US")
+                                  .split("T")[0]
                               : "N/A",
                           })
                         }
                       >
                         {log.DOB
-                          ? new Date(log.DOB).toISOString().split("T")[0]
+                          ? new Date(log.DOB)
+                              .toLocaleDateString("en-US")
+                              .split("T")[0]
                           : "N/A"}
                       </td>
 
