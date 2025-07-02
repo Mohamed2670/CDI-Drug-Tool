@@ -32,7 +32,7 @@ function parseDrugs(drugsStr: string) {
 }
 export const AdminDashboard = () => {
   const { logout } = useAuth();
-  const { data: logs, loading, refetch } = useLogsData();
+  const { data: logs, loading, refetch } = useLogsData(100000,1);
   const [filters, setFilters] = useState({
     guestName: "",
     decision: "",
