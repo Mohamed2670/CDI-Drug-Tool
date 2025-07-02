@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL ="https://database.medisearchtool.com"
+const API_BASE_URL ="http://localhost:5062"
 
 const getAuthHeader = () => ({
   Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}`,

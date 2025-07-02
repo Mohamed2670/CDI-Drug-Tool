@@ -129,7 +129,7 @@ export const AdminDashboard = () => {
       log.Decision,
       log.TransactionID,
       log.FirstInitial,
-      log.DOB,
+      log.DOB ? new Date(log.DOB).toISOString().split("T")[0] : "",
       log.MRN,
     ];
     const csv = `${headers.join(",")}\n${row
@@ -226,7 +226,7 @@ export const AdminDashboard = () => {
         log.Decision,
         log.TransactionID,
         log.FirstInitial,
-        log.DOB,
+        log.DOB ? new Date(log.DOB).toISOString().split("T")[0] : "",
         log.MRN,
       ]
         .map((val) => `"${val}"`)
@@ -594,12 +594,17 @@ export const AdminDashboard = () => {
                         onClick={() =>
                           setSelectedCell({
                             label: "DOB",
-                            value: log.DOB,
+                            value: log.DOB
+                              ? new Date(log.DOB).toISOString().split("T")[0]
+                              : "N/A",
                           })
                         }
                       >
-                        {log.DOB}
+                        {log.DOB
+                          ? new Date(log.DOB).toISOString().split("T")[0]
+                          : "N/A"}
                       </td>
+
                       <td
                         className="border border-border p-2 font-mono text-xs cursor-pointer"
                         onClick={() =>

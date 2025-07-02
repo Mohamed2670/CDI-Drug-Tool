@@ -11,7 +11,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { CalendarIcon, LogOut } from "lucide-react";
-import { format } from "date-fns";
+import { format, isValid } from "date-fns";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { SearchableMultiSelect } from "@/components/SearchableMultiSelect";
 import { useAuth } from "@/contexts/AuthContext";
@@ -233,16 +233,23 @@ export const GuestWorkflow = () => {
                   <Input
                     id="dob"
                     type="date"
+                    max={format(new Date(), "yyyy-MM-dd")} // still restricts UI date picker
                     value={
-                      patientData.dob
-                        ? format(patientData.dob, "yyyy-MM-dd")
+                      patientData.dob && isValid(new Date(patientData.dob))
+                        ? format(new Date(patientData.dob), "yyyy-MM-dd")
                         : ""
                     }
                     onChange={(e) => {
-                      const value = e.target.value;
+                      const selectedDate = new Date(e.target.value);
+                      const today = new Date();
+
+                      // If selected date is in the future, override with today
+                      const correctedDate =
+                        selectedDate > today ? today : selectedDate;
+
                       setPatientData((prev) => ({
                         ...prev,
-                        dob: value ? new Date(value) : undefined,
+                        dob: isValid(correctedDate) ? correctedDate : undefined,
                       }));
                     }}
                     placeholder="YYYY-MM-DD"
