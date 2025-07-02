@@ -62,7 +62,7 @@ export const useProfitData = () => {
   return { data, loading, error };
 };
 
-export const useLogsData = (pageSize = 10, pageNumber = 1) => {
+export const useLogsData = (pageSize = 100000, pageNumber = 1) => {
   const [data, setData] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
