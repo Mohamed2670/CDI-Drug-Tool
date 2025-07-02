@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { format, isValid } from "date-fns";
 
 const LOGS_PER_PAGE = 20;
 
@@ -32,7 +33,7 @@ function parseDrugs(drugsStr: string) {
 }
 export const AdminDashboard = () => {
   const { logout } = useAuth();
-  const { data: logs, loading, refetch } = useLogsData(100000,1);
+  const { data: logs, loading, refetch } = useLogsData(100000, 1);
   const [filters, setFilters] = useState({
     guestName: "",
     decision: "",
@@ -413,13 +414,25 @@ export const AdminDashboard = () => {
                 <Input
                   id="dateFrom"
                   type="date"
+                  max={format(new Date(), "yyyy-MM-dd")} // still restricts UI date picker
                   value={filters.dateFrom}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    const inputValue = e.target.value;
+                    const inputDate = new Date(inputValue);
+                    const today = new Date();
+
+                    const correctedDate =
+                      isValid(inputDate) && inputDate > today
+                        ? today
+                        : inputDate;
+
                     setFilters((prev) => ({
                       ...prev,
-                      dateFrom: e.target.value,
-                    }))
-                  }
+                      dateFrom: isValid(correctedDate)
+                        ? format(correctedDate, "yyyy-MM-dd")
+                        : "",
+                    }));
+                  }}
                 />
               </div>
               <div>
@@ -427,10 +440,25 @@ export const AdminDashboard = () => {
                 <Input
                   id="dateTo"
                   type="date"
+                  max={format(new Date(), "yyyy-MM-dd")} // restricts future date via picker
                   value={filters.dateTo}
-                  onChange={(e) =>
-                    setFilters((prev) => ({ ...prev, dateTo: e.target.value }))
-                  }
+                  onChange={(e) => {
+                    const inputValue = e.target.value;
+                    const inputDate = new Date(inputValue);
+                    const today = new Date();
+
+                    const correctedDate =
+                      isValid(inputDate) && inputDate > today
+                        ? today
+                        : inputDate;
+
+                    setFilters((prev) => ({
+                      ...prev,
+                      dateTo: isValid(correctedDate)
+                        ? format(correctedDate, "yyyy-MM-dd")
+                        : "",
+                    }));
+                  }}
                 />
               </div>
             </div>
