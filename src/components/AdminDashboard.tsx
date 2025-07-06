@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,10 +13,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { format, isValid } from "date-fns";
+import { format, isValid, parseISO } from "date-fns";
+import axios from "axios";
+import axiosInstance from "@/api/axiosInstance";
 
-const LOGS_PER_PAGE = 20;
-
+const LOGS_PER_PAGE = 25;
+export interface DrugSheetUrl {
+  id: number;
+  sheetUrl: string;
+  addedDate: string;
+}
 function parseDrugs(drugsStr: string) {
   if (!drugsStr) return [];
   return drugsStr.split(",").map((entry) => {
@@ -31,6 +37,7 @@ function parseDrugs(drugsStr: string) {
     return { name: entry.trim(), price: "" };
   });
 }
+
 export const AdminDashboard = () => {
   const { logout } = useAuth();
   const { data: logs, loading, refetch } = useLogsData(100000, 1);
@@ -49,12 +56,36 @@ export const AdminDashboard = () => {
 
   // Modal state for drugs
   const [selectedDrugs, setSelectedDrugs] = useState<string | null>(null);
-
+  const [dataState, setDataState] = useState<DrugSheetUrl>(null);
   // Pagination state
   const [page, setPage] = useState(1);
 
+  // Google Sheet Drug Data Section
+  const [sheetUrl, setSheetUrl] = useState("");
+  const [addDrugStatus, setAddDrugStatus] = useState<
+    null | "success" | "error" | "loading"
+  >(null);
+  const fetchLatestDrugData = async () => {
+    const response = await axiosInstance.get("/DrugData/GetLatestDrugData");
+    setDataState(response.data as DrugSheetUrl);
+  };
+  const handleAddDrugData = async () => {
+    setAddDrugStatus("loading");
+    try {
+      await axiosInstance.post("/DrugData/AddDrugData", sheetUrl, {
+        headers: { "Content-Type": "application/json" },
+      });
+      setAddDrugStatus("success");
+      setSheetUrl("");
+      await fetchLatestDrugData(); // <-- Refresh after successful submit
+    } catch (e) {
+      setAddDrugStatus("error");
+    }
+  };
+  useEffect(() => {
+    fetchLatestDrugData();
+  }, []);
   // Extraction handler for drugs
-
   const filteredLogs = useMemo(() => {
     const filtered = logs.filter((log) => {
       const matchesGuest =
@@ -146,7 +177,8 @@ export const AdminDashboard = () => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  }, [selectedDrugs, [paginatedLogs]]);
+  }, [selectedDrugs, paginatedLogs]);
+
   const analytics = useMemo(() => {
     const totalDecisions = filteredLogs.length;
     const appleDecisions = filteredLogs.filter(
@@ -245,7 +277,10 @@ export const AdminDashboard = () => {
     link.click();
     document.body.removeChild(link);
   };
-
+  const lastSavedDate =
+    dataState?.addedDate && !isNaN(Date.parse(dataState.addedDate))
+      ? format(parseISO(dataState.addedDate), "yyyy-MM-dd HH:mm")
+      : "N/A";
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="container mx-auto p-4 max-w-7xl">
@@ -265,6 +300,57 @@ export const AdminDashboard = () => {
             </Button>
           </div>
         </div>
+
+        {/* Add Drug Data from Google Sheet */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Add Drug Data from Google Sheet</CardTitle>
+            <div className="text-xs text-muted-foreground mt-1 flex flex-col md:flex-row md:items-center gap-2">
+              <span>
+                Last Saved Data:{" "}
+                <span className="font-mono">{lastSavedDate}</span>
+              </span>
+              {dataState?.sheetUrl && (
+                <span className="truncate">
+                  <span className="mx-2 text-muted-foreground">|</span>
+                  <a
+                    href={dataState.sheetUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline text-blue-600 break-all"
+                  >
+                    {dataState.sheetUrl}
+                  </a>
+                </span>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col md:flex-row gap-4 items-center">
+              <Input
+                type="text"
+                placeholder="Paste Google Sheets URL"
+                value={sheetUrl}
+                onChange={(e) => setSheetUrl(e.target.value)}
+                className="flex-1"
+              />
+              <Button
+                onClick={handleAddDrugData}
+                disabled={!sheetUrl || addDrugStatus === "loading"}
+              >
+                {addDrugStatus === "loading" ? "Submitting..." : "Submit"}
+              </Button>
+            </div>
+            {addDrugStatus === "success" && (
+              <div className="text-green-600 mt-2">
+                Drug data added successfully!
+              </div>
+            )}
+            {addDrugStatus === "error" && (
+              <div className="text-red-600 mt-2">Failed to add drug data.</div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Analytics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -414,7 +500,7 @@ export const AdminDashboard = () => {
                 <Input
                   id="dateFrom"
                   type="date"
-                  max={format(new Date(), "yyyy-MM-dd")} // still restricts UI date picker
+                  max={format(new Date(), "yyyy-MM-dd")}
                   value={filters.dateFrom}
                   onChange={(e) => {
                     const inputValue = e.target.value;
@@ -440,7 +526,7 @@ export const AdminDashboard = () => {
                 <Input
                   id="dateTo"
                   type="date"
-                  max={format(new Date(), "yyyy-MM-dd")} // restricts future date via picker
+                  max={format(new Date(), "yyyy-MM-dd")}
                   value={filters.dateTo}
                   onChange={(e) => {
                     const inputValue = e.target.value;
@@ -636,7 +722,6 @@ export const AdminDashboard = () => {
                               .split("T")[0]
                           : "N/A"}
                       </td>
-
                       <td
                         className="border border-border p-2 font-mono text-xs cursor-pointer"
                         onClick={() =>
