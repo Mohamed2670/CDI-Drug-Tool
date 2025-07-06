@@ -8,7 +8,11 @@ export interface ProfitData {
   "Third Party": string;
   "Gross Profit": string;
 }
-
+export interface DrugSheetUrl {
+  id: number;
+  sheetUrl: string;
+  addedDate: string;
+}
 export interface LogEntry {
   Timestamp: string;
   GuestName: string; // ✅ no space
@@ -23,11 +27,29 @@ export interface LogEntry {
   TransactionID: string;
 }
 
-const PROFIT_DATA_URL =
-  "https://docs.google.com/spreadsheets/d/18OMVNlPpyHEmW5NYUXkPFGvVwUnE4llR/export?format=csv&gid=1921540594";
+// const PROFIT_DATA_URL =
+//   "https://docs.google.com/spreadsheets/d/18OMVNlPpyHEmW5NYUXkPFGvVwUnE4llR/export?format=csv&gid=1921540594";
 const LOGS_DATA_URL =
   "https://docs.google.com/spreadsheets/d/1J-vVUlu9H1_v7OOH7iVYWV4dOKZ9oSl60lpg-TwLVxc/export?format=csv&gid=0";
+function toCsvUrl(url) {
+  const parts = url.split("/d/");
+  if (parts.length < 2) {
+    throw new Error("❌ Invalid Google Sheet URL: sheetId not found");
+  }
 
+  const sheetId = parts[1].split("/")[0];
+
+  // extract gid
+  let gid = "0"; // default
+  const gidParts = url.split("=");
+  console.log("sdsa : ", gidParts);
+  if (gidParts.length > 1) {
+    // take last gid found
+    gid = gidParts[gidParts.length - 1].split(/[^0-9]/)[0];
+  }
+
+  return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+}
 export const useProfitData = () => {
   const [data, setData] = useState<ProfitData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,7 +58,19 @@ export const useProfitData = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch(PROFIT_DATA_URL);
+        const response0 = await axiosInstance.get(
+          "/DrugData/GetLatestDrugData"
+        );
+        const profitSheetData = response0.data as Partial<DrugSheetUrl>;
+        console.log(profitSheetData);
+        if (!profitSheetData.sheetUrl) {
+          setError("Invalid sheet URL data received");
+          setLoading(false);
+          return;
+        }
+        const csvUrl = toCsvUrl(profitSheetData.sheetUrl);
+        console.log(csvUrl);
+        const response = await fetch(csvUrl);
         const csvText = await response.text();
 
         Papa.parse(csvText, {
@@ -76,7 +110,11 @@ export const useLogsData = (pageSize = 100000, pageNumber = 1) => {
       });
       console.log(response);
       const dataObj = response.data as { items?: any[]; totalCount?: number };
-      const logsData = Array.isArray(dataObj.items) ? dataObj.items : Array.isArray(dataObj) ? dataObj : [];
+      const logsData = Array.isArray(dataObj.items)
+        ? dataObj.items
+        : Array.isArray(dataObj)
+        ? dataObj
+        : [];
       const count = dataObj.totalCount || 0;
 
       const normalized = logsData.map((item: any) => ({
