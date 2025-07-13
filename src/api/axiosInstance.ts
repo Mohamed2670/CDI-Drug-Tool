@@ -77,6 +77,7 @@ axiosInstance.interceptors.response.use(
       } catch (err) {
         processQueue(err, null);
         localStorage.removeItem('accessToken');
+        localStorage.removeItem("user");
         window.location.href = '/login';
         return Promise.reject(err);
       } finally {
