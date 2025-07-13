@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 
 const API_BASE_URL ="https://database.medisearchtool.com"
 
@@ -13,7 +14,7 @@ const axiosInstance = axios.create({
 
 let isRefreshing = false;
 let failedQueue: any[] = [];
-
+const navigate = useNavigate();
 const processQueue = (error: any, token: string | null = null) => {
   failedQueue.forEach(prom => {
     if (token) {
@@ -77,7 +78,7 @@ axiosInstance.interceptors.response.use(
         processQueue(err, null);
         localStorage.removeItem('accessToken');
         localStorage.removeItem("user");
-        window.location.href = '/login';
+        navigate("/");
         return Promise.reject(err);
       } finally {
         isRefreshing = false;

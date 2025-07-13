@@ -1,55 +1,89 @@
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { useAuth } from '@/contexts/AuthContext';
-import { ThemeToggle } from '@/components/ThemeToggle';
-import axiosInstance from '@/api/axiosInstance';
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/contexts/AuthContext";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import axiosInstance from "@/api/axiosInstance";
+import { useNavigate } from "react-router-dom";
 
 export const LoginPage = () => {
-  const [selectedRole, setSelectedRole] = useState<'guest' | 'admin' | null>(null);
-  const [guestName, setGuestName] = useState('');
-  const [adminEmail, setAdminEmail] = useState('');
-  const [adminPassword, setAdminPassword] = useState('');
+  const [selectedRole, setSelectedRole] = useState<"guest" | "admin" | null>(
+    null
+  );
+  const [guestName, setGuestName] = useState("");
+  const [adminEmail, setAdminEmail] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
   const { login } = useAuth();
+
+  const navigate = useNavigate();
 
   const handleGuestLogin = async () => {
     if (!guestName.trim()) return;
     try {
-      const res = await axiosInstance.post<{ accessToken: string; role: string }>(
-        '/user/guest-login',
+      const res = await axiosInstance.post<{
+        accessToken: string;
+        role: string;
+      }>(
+        "/user/guest-login",
         { name: guestName.trim() },
         { withCredentials: true }
       );
-      localStorage.setItem('accessToken', res.data.accessToken);
+
+      localStorage.setItem("accessToken", res.data.accessToken);
+
       // Map backend role to expected union type
-      const mappedRole: 'guest' | 'admin' = res.data.role === 'Admin' ? 'admin' : 'guest';
-      login(guestName.trim(), mappedRole); // role = "guest"
+      const mappedRole: "guest" | "admin" =
+        res.data.role.toLowerCase() === "admin" ? "admin" : "guest";
+
+      login(guestName.trim(), mappedRole); // set user context
+
+      // 🚀 redirect based on role
+      if (mappedRole === "admin") {
+        navigate("/admin");
+      } else {
+        navigate("/guest");
+      }
     } catch (err) {
-      alert('Guest login failed.');
+      alert("Guest login failed.");
     }
   };
 
   const handleAdminLogin = async () => {
     if (!adminEmail.trim() || !adminPassword.trim()) return;
+
     try {
-      const res = await axiosInstance.post<{ accessToken: string; role: string }>(
-        '/user/login',
+      const res = await axiosInstance.post<{
+        accessToken: string;
+        role: string;
+      }>(
+        "/user/login",
         {
           email: adminEmail.trim(),
           password: adminPassword,
         },
         { withCredentials: true }
       );
-      localStorage.setItem('accessToken', res.data.accessToken);
+
+      localStorage.setItem("accessToken", res.data.accessToken);
+
       // Map backend role to expected union type
-      const mappedRole: 'guest' | 'admin' = res.data.role === 'Admin' ? 'admin' : 'guest';
-      login('Administrator', mappedRole); // role = "admin"
+      const mappedRole: "guest" | "admin" =
+        res.data.role.toLowerCase() === "admin" ? "admin" : "guest";
+
+      login("Administrator", mappedRole);
+
+      // 🚀 redirect based on role
+      if (mappedRole === "admin") {
+        navigate("/admin");
+      } else {
+        navigate("/guest");
+      }
     } catch (err) {
       console.log(err);
-      alert('Incorrect email or password.');
+      alert("Incorrect email or password.");
     }
   };
 
@@ -66,7 +100,10 @@ export const LoginPage = () => {
 
         {!selectedRole ? (
           <div className="space-y-4">
-            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setSelectedRole('guest')}>
+            <Card
+              className="cursor-pointer hover:shadow-lg transition-shadow"
+              onClick={() => setSelectedRole("guest")}
+            >
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   Guest Access
@@ -80,7 +117,10 @@ export const LoginPage = () => {
               </CardContent>
             </Card>
 
-            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setSelectedRole('admin')}>
+            <Card
+              className="cursor-pointer hover:shadow-lg transition-shadow"
+              onClick={() => setSelectedRole("admin")}
+            >
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   Admin Access
@@ -98,14 +138,18 @@ export const LoginPage = () => {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
-                {selectedRole === 'guest' ? 'Guest Login' : 'Admin Login'}
-                <Button variant="ghost" size="sm" onClick={() => setSelectedRole(null)}>
+                {selectedRole === "guest" ? "Guest Login" : "Admin Login"}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedRole(null)}
+                >
                   Back
                 </Button>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {selectedRole === 'guest' ? (
+              {selectedRole === "guest" ? (
                 <>
                   <div>
                     <Label htmlFor="guest-name">Your Name</Label>
@@ -114,7 +158,7 @@ export const LoginPage = () => {
                       value={guestName}
                       onChange={(e) => setGuestName(e.target.value)}
                       placeholder="Enter your name"
-                      onKeyDown={(e) => e.key === 'Enter' && handleGuestLogin()}
+                      onKeyDown={(e) => e.key === "Enter" && handleGuestLogin()}
                     />
                   </div>
                   <Button
@@ -145,7 +189,7 @@ export const LoginPage = () => {
                       value={adminPassword}
                       onChange={(e) => setAdminPassword(e.target.value)}
                       placeholder="Enter admin password"
-                      onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()}
+                      onKeyDown={(e) => e.key === "Enter" && handleAdminLogin()}
                     />
                   </div>
                   <Button
