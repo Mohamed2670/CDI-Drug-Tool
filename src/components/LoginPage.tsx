@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +15,7 @@ export const LoginPage = () => {
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const { login } = useAuth();
+  const navigate = useNavigate();
 
   const handleGuestLogin = async () => {
     if (!guestName.trim()) return;
@@ -24,9 +26,9 @@ export const LoginPage = () => {
         { withCredentials: true }
       );
       localStorage.setItem('accessToken', res.data.accessToken);
-      // Map backend role to expected union type
       const mappedRole: 'guest' | 'admin' = res.data.role === 'Admin' ? 'admin' : 'guest';
-      login(guestName.trim(), mappedRole); // role = "guest"
+      login(guestName.trim(), mappedRole);
+      navigate('/guest');
     } catch (err) {
       alert('Guest login failed.');
     }
@@ -44,9 +46,9 @@ export const LoginPage = () => {
         { withCredentials: true }
       );
       localStorage.setItem('accessToken', res.data.accessToken);
-      // Map backend role to expected union type
       const mappedRole: 'guest' | 'admin' = res.data.role === 'Admin' ? 'admin' : 'guest';
-      login('Administrator', mappedRole); // role = "admin"
+      login('Administrator', mappedRole);
+      navigate('/admin');
     } catch (err) {
       console.log(err);
       alert('Incorrect email or password.');
@@ -66,7 +68,10 @@ export const LoginPage = () => {
 
         {!selectedRole ? (
           <div className="space-y-4">
-            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setSelectedRole('guest')}>
+            <Card
+              className="cursor-pointer hover:shadow-lg transition-shadow"
+              onClick={() => setSelectedRole('guest')}
+            >
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   Guest Access
@@ -80,7 +85,10 @@ export const LoginPage = () => {
               </CardContent>
             </Card>
 
-            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setSelectedRole('admin')}>
+            <Card
+              className="cursor-pointer hover:shadow-lg transition-shadow"
+              onClick={() => setSelectedRole('admin')}
+            >
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   Admin Access
