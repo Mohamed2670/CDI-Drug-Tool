@@ -47,6 +47,9 @@ interface PatientDatatemp {
   dob: string | undefined;
   firstInitial: string;
   mrn: string;
+  dobMonth?: string;
+  dobDay?: string;
+  dobYear?: string;
 }
 export const GuestWorkflow = () => {
   const { user, logout } = useAuth();
@@ -57,6 +60,9 @@ export const GuestWorkflow = () => {
     dob: "",
     firstInitial: "",
     mrn: "",
+    dobMonth: "",
+    dobDay: "",
+    dobYear: "",
   });
   const [selection, setSelection] = useState<Selection>({
     insurance: "",
@@ -234,22 +240,77 @@ export const GuestWorkflow = () => {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="dob">Date of Birth</Label>
-                  <Input
-                    id="dob"
-                    type="text"
-                    value={patientData.dob ?? ""} // just use the string
-                    onChange={(e) => {
-                      const inputValue = e.target.value;
+                  <Label>Date of Birth</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="dob-year"
+                      type="text"
+                      maxLength={4}
+                      placeholder="YYYY"
+                      value={patientData.dobYear ?? ""}
+                      onChange={(e) => {
+                        const year = e.target.value;
 
-                      setPatientData((prev) => ({
-                        ...prev,
-                        dob: inputValue, // just store as string
-                      }));
-                    }}
-                    placeholder="YYYY-MM-DD"
-                    className="w-full"
-                  />
+                        // Only allow digits & max 4 characters
+                        if (!/^\d{0,4}$/.test(year)) return;
+
+                        setPatientData((prev) => ({
+                          ...prev,
+                          dobYear: year,
+                          dob: `${year}-${prev.dobMonth ?? ""}-${
+                            prev.dobDay ?? ""
+                          }`.replace(/-+$/, ""),
+                        }));
+                      }}
+                      className="w-20"
+                    />
+                    <Input
+                      id="dob-month"
+                      type="text"
+                      maxLength={2}
+                      placeholder="MM"
+                      value={patientData.dobMonth ?? ""}
+                      onChange={(e) => {
+                        const month = e.target.value;
+
+                        // Only allow digits 1–12
+                        if (!/^\d{0,2}$/.test(month)) return;
+                        if (+month > 12) return;
+
+                        setPatientData((prev) => ({
+                          ...prev,
+                          dobMonth: month,
+                          dob: `${prev.dobYear ?? ""}-${month}-${
+                            prev.dobDay ?? ""
+                          }`.replace(/-+$/, ""),
+                        }));
+                      }}
+                      className="w-12"
+                    />
+                    <Input
+                      id="dob-day"
+                      type="text"
+                      maxLength={2}
+                      placeholder="DD"
+                      value={patientData.dobDay ?? ""}
+                      onChange={(e) => {
+                        const day = e.target.value;
+
+                        // Only allow digits 1–31
+                        if (!/^\d{0,2}$/.test(day)) return;
+                        if (+day > 31) return;
+
+                        setPatientData((prev) => ({
+                          ...prev,
+                          dobDay: day,
+                          dob: `${prev.dobYear ?? ""}-${
+                            prev.dobMonth ?? ""
+                          }-${day}`.replace(/-+$/, ""),
+                        }));
+                      }}
+                      className="w-12"
+                    />
+                  </div>
                 </div>
 
                 <div>
