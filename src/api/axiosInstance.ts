@@ -1,6 +1,6 @@
-import axios from 'axios';
+import axios from "axios";
 
-const API_BASE_URL ="https://database.medisearchtool.com"
+const API_BASE_URL = "https://database.medisearchtool.com";
 
 const getAuthHeader = () => ({
   Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}`,
@@ -13,9 +13,13 @@ const axiosInstance = axios.create({
 
 let isRefreshing = false;
 let failedQueue: any[] = [];
-
+export const clearAuthAndRedirect = () => {
+  localStorage.removeItem("accessToken");
+  localStorage.removeItem("user");
+  window.location.replace("/login"); // or just `/`
+};
 const processQueue = (error: any, token: string | null = null) => {
-  failedQueue.forEach(prom => {
+  failedQueue.forEach((prom) => {
     if (token) {
       prom.resolve(token);
     } else {
@@ -26,28 +30,30 @@ const processQueue = (error: any, token: string | null = null) => {
 };
 
 axiosInstance.interceptors.request.use(
-  config => {
+  (config) => {
     const authHeader = getAuthHeader();
     Object.entries(authHeader).forEach(([key, value]) => {
       config.headers?.set(key, value);
     });
     return config;
   },
-  error => Promise.reject(error)
+  (error) => Promise.reject(error)
 );
 
 axiosInstance.interceptors.response.use(
-  response => response,
+  (response) => response,
   async (error) => {
     const originalRequest = error.config;
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
-      console.log('Token expired, refreshing...');
+      localStorage.removeItem("user");
+      
+      console.log("Token expired, refreshing...");
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({
             resolve: (token: string) => {
-              originalRequest.headers['Authorization'] = `Bearer ${token}`;
+              originalRequest.headers["Authorization"] = `Bearer ${token}`;
               resolve(axiosInstance(originalRequest));
             },
             reject: (err: any) => reject(err),
@@ -67,17 +73,17 @@ axiosInstance.interceptors.response.use(
           { withCredentials: true }
         );
         const newToken = res.data.accessToken;
-        localStorage.setItem('accessToken', newToken);
-        axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+        localStorage.setItem("accessToken", newToken);
+        axiosInstance.defaults.headers.common[
+          "Authorization"
+        ] = `Bearer ${newToken}`;
 
         processQueue(null, newToken);
 
         return axiosInstance(originalRequest);
       } catch (err) {
         processQueue(err, null);
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem("user");
-        window.location.href = '/';
+        clearAuthAndRedirect();
         return Promise.reject(err);
       } finally {
         isRefreshing = false;

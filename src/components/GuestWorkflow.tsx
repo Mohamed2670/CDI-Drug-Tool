@@ -42,14 +42,19 @@ interface DecisionResult {
   drugProfits: { drug: string; profit: number }[];
   transactionId: string;
 }
-
+interface PatientDatatemp {
+  lastName: string;
+  dob: string | undefined;
+  firstInitial: string;
+  mrn: string;
+}
 export const GuestWorkflow = () => {
   const { user, logout } = useAuth();
   const { data: profitData, loading } = useProfitData();
   const { toast } = useToast();
-  const [patientData, setPatientData] = useState<PatientData>({
+  const [patientData, setPatientData] = useState<PatientDatatemp>({
     lastName: "",
-    dob: undefined,
+    dob: "",
     firstInitial: "",
     mrn: "",
   });
@@ -128,7 +133,7 @@ export const GuestWorkflow = () => {
       await axiosInstance.post("/log/CreateLog", {
         "Guest Name": user?.name || "",
         "Last Name": patientData.lastName,
-        dob: patientData.dob?.toISOString().split("T")[0] || "",
+        dob: patientData.dob || "",
         "First Initial": patientData.firstInitial,
         mrn: patientData.mrn,
         insurance: selection.insurance,
@@ -232,30 +237,21 @@ export const GuestWorkflow = () => {
                   <Label htmlFor="dob">Date of Birth</Label>
                   <Input
                     id="dob"
-                    type="date"
-                    max={format(new Date(), "yyyy-MM-dd")} // still restricts UI date picker
-                    value={
-                      patientData.dob && isValid(new Date(patientData.dob))
-                        ? format(new Date(patientData.dob), "yyyy-MM-dd")
-                        : ""
-                    }
+                    type="text"
+                    value={patientData.dob ?? ""} // just use the string
                     onChange={(e) => {
-                      const selectedDate = new Date(e.target.value);
-                      const today = new Date();
-
-                      // If selected date is in the future, override with today
-                      const correctedDate =
-                        selectedDate > today ? today : selectedDate;
+                      const inputValue = e.target.value;
 
                       setPatientData((prev) => ({
                         ...prev,
-                        dob: isValid(correctedDate) ? correctedDate : undefined,
+                        dob: inputValue, // just store as string
                       }));
                     }}
                     placeholder="YYYY-MM-DD"
                     className="w-full"
                   />
                 </div>
+
                 <div>
                   <Label htmlFor="firstInitial">First Initial</Label>
                   <Input

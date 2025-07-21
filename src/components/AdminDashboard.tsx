@@ -286,7 +286,7 @@ export const AdminDashboard = () => {
       <div className="container mx-auto p-4 max-w-7xl">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold mb-2">Admin Dashboard</h1>
+            <h1 className="text-3xl font-bold mb-2">Admin Dashboard2222</h1>
             <p className="text-muted-foreground">System analytics and logs</p>
           </div>
           <div className="flex gap-2">
